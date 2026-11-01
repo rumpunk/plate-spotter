@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Plate Spotter</title>
+<meta name="apple-mobile-web-app-title" content="Plate Spotter">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6feb">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#1b1f24;--muted:#667085;--accent:#1f6feb;--accent-text:#fff;--border:#d6dae0;--chip:#e3efff;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171b;--card:#1f242b;--text:#eef1f5;--muted:#9aa4b2;--accent:#4c8dff;--accent-text:#0b1220;--border:#343b45;--chip:#243349;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171b;--card:#1f242b;--text:#eef1f5;--muted:#9aa4b2;--accent:#4c8dff;--accent-text:#0b1220;--border:#343b45;--chip:#243349;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:16px}
+h1{font-size:24px;margin:4px 0 2px}
+.sub{color:var(--muted);font-size:15px;margin-bottom:12px}
+.bar{height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:14px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs button{flex:1;padding:12px;font-size:16px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px}
+.tabs button.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.st{min-height:64px;padding:8px;border:none;border-radius:14px;background:var(--accent);color:var(--accent-text);font-size:19px;font-weight:700;line-height:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.st small{font-size:13px;font-weight:600;opacity:.85}
+.st:active{transform:scale(.97)}
+h2{font-size:17px;margin:22px 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:none;background:var(--chip);color:var(--text);padding:8px 12px;border-radius:99px;font-size:15px;font-weight:600}
+.hint{color:var(--muted);font-size:13px;margin-top:6px}
+.done{text-align:center;padding:28px 12px;font-size:20px;font-weight:700}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 6px;font-size:18px;display:flex;justify-content:space-between}
+.card p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+.hide{display:none}
+.btn{display:inline-block;padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--accent-text);font-size:16px;font-weight:600;margin:8px 8px 0 0}
+input[type=text],input[type=password]{width:100%;padding:12px;font-size:16px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);margin:4px 0 10px}
+label.l{font-size:14px;color:var(--muted)}
+.card h3{margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚗 Plate Spotter</h1>
+  <div class="sub" id="sub"></div>
+  <div class="hint" id="sync" style="margin:-6px 0 10px"></div>
+  <div class="bar"><i id="fill"></i></div>
+  <div class="tabs">
+    <button id="tSpot" class="on">Spot</button>
+    <button id="tLog">Monthly log</button>
+    <button id="tSet">Backup</button>
+  </div>
+  <div id="vSpot">
+    <div class="grid" id="grid"></div>
+    <div class="done hide" id="done">🎉 All 50 found this month!</div>
+    <h2>Found this month</h2>
+    <div class="chips" id="chips"></div>
+    <div class="hint">Tap a found state to put its button back.</div>
+  </div>
+  <div id="vLog" class="hide"></div>
+  <div id="vSet" class="hide">
+    <div class="card"><h3>Cloud backup (GitHub)</h3>
+      <p>Saves your data to a private GitHub repo so it survives clearing the browser or switching phones.</p>
+      <label class="l">Data repo (yourname/plate-data)</label><input type="text" id="repo" autocapitalize="off" autocomplete="off">
+      <label class="l">Access token</label><input type="password" id="tok" autocomplete="off">
+      <button class="btn" id="saveCfg">Save and sync</button>
+      <div class="hint" id="syncMsg"></div></div>
+    <div class="card"><h3>Backup file</h3>
+      <button class="btn" id="exp">Export</button><label class="btn">Import<input type="file" id="imp" accept=".json" hidden></label></div>
+  </div>
+</div>
+<script>
+var STATES=[["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["FL","Florida"],["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"]];
+var NAME={};STATES.forEach(function(s){NAME[s[0]]=s[1]});
+var KEY="plateSpotterV1";
+var S={month:"",found:{},history:{}};
+function monthKey(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)}
+function label(k){var p=k.split("-");return new Date(+p[0],+p[1]-1,1).toLocaleDateString(undefined,{month:"long",year:"numeric"})}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&typeof o==="object"){S.month=o.month||"";S.found=o.found||{};S.history=o.history||{};S.updated=o.updated||0}}}catch(e){}}
+var CFG={repo:"",tok:""},sha=null,pushing=false,again=false,ready=false;
+try{var c0=JSON.parse(localStorage.getItem("plateCfg")||"{}");CFG.repo=c0.repo||"";CFG.tok=c0.tok||""}catch(e){}
+function setSync(t){document.getElementById("sync").textContent=t;document.getElementById("syncMsg").textContent=t}
+function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}push()}
+function api(m,body){return fetch("https://api.github.com/repos/"+CFG.repo+"/contents/plate-data.json",{method:m,headers:{Authorization:"Bearer "+CFG.tok,Accept:"application/vnd.github+json"},body:body?JSON.stringify(body):undefined})}
+function push(){
+  if(!ready)return;
+  if(pushing){again=true;return}
+  pushing=true;
+  var b={message:"Update plates",content:btoa(JSON.stringify(S))};if(sha)b.sha=sha;
+  api("PUT",b).then(function(r){if(!r.ok)throw r.status;return r.json()}).then(function(j){sha=j.content.sha;setSync("☁️ Backed up to GitHub")}).catch(function(){setSync("Backup failed. Saved on this device.")}).then(function(){pushing=false;if(again){again=false;push()}});
+}
+async function sync(){
+  ready=false;sha=null;
+  if(!CFG.repo||!CFG.tok){setSync("Saved on this device only. Set up backup in the Backup tab.");return}
+  try{
+    setSync("Syncing…");
+    var r=await api("GET"),exists=false,ru=0;
+    if(r.status===200){
+      var j=await r.json();sha=j.sha;exists=true;
+      var d=JSON.parse(atob(j.content.replace(/\n/g,"")));ru=d.updated||0;
+      if(ru>(S.updated||0)){S.month=d.month||"";S.found=d.found||{};S.history=d.history||{};S.updated=ru;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+    }else if(r.status!==404)throw r.status;
+    var rolled=rollover();
+    ready=true;
+    if(!exists||rolled||S.updated>ru)push();else setSync("☁️ Backed up to GitHub");
+    render();
+  }catch(e){setSync("Couldn’t reach GitHub. Check the repo name and token. Saved on this device.")}
+}
+function rollover(){
+  var k=monthKey(new Date());
+  if(S.month!==k){
+    if(S.month&&Object.keys(S.found).length){S.history[S.month]=S.found}
+    S.month=k;S.found={};save();return true;
+  }
+  return false;
+}
+function sortedFound(){return Object.keys(S.found).sort(function(a,b){return NAME[a]<NAME[b]?-1:1})}
+function render(){
+  var n=Object.keys(S.found).length;
+  document.getElementById("sub").textContent=label(S.month)+" · "+n+" of 50 found";
+  document.getElementById("fill").style.width=(n/50*100)+"%";
+  var g=document.getElementById("grid");g.innerHTML="";
+  STATES.forEach(function(s){
+    if(S.found[s[0]])return;
+    var b=document.createElement("button");b.className="st";
+    b.innerHTML=s[0]+"<small>"+s[1]+"</small>";
+    b.onclick=function(){S.found[s[0]]=new Date().toISOString();save();render()};
+    g.appendChild(b);
+  });
+  document.getElementById("done").classList.toggle("hide",n<50);
+  var c=document.getElementById("chips");c.innerHTML="";
+  if(!n){c.innerHTML='<span class="hint">None yet. Happy hunting!</span>'}
+  sortedFound().forEach(function(a){
+    var b=document.createElement("button");b.className="chip";b.textContent=NAME[a];
+    b.onclick=function(){delete S.found[a];save();render()};
+    c.appendChild(b);
+  });
+  renderLog();
+}
+function renderLog(){
+  var v=document.getElementById("vLog");v.innerHTML="";
+  var all={};Object.keys(S.history).forEach(function(k){all[k]=S.history[k]});
+  if(Object.keys(S.found).length){all[S.month]=S.found}
+  var keys=Object.keys(all).sort().reverse();
+  if(!keys.length){v.innerHTML='<div class="hint">Nothing logged yet. Each month’s plates are saved here when the 1st rolls around.</div>';return}
+  keys.forEach(function(k){
+    var abbrs=Object.keys(all[k]).sort(function(a,b){return NAME[a]<NAME[b]?-1:1});
+    var d=document.createElement("div");d.className="card";
+    var h=document.createElement("h3");
+    var t=document.createElement("span");t.textContent=label(k)+(k===S.month?" (now)":"");
+    var c=document.createElement("span");c.textContent=abbrs.length+"/50";
+    h.appendChild(t);h.appendChild(c);
+    var p=document.createElement("p");p.textContent=abbrs.map(function(a){return NAME[a]}).join(", ");
+    d.appendChild(h);d.appendChild(p);v.appendChild(d);
+  });
+}
+var VIEWS={spot:["vSpot","tSpot"],log:["vLog","tLog"],set:["vSet","tSet"]};
+function tab(w){Object.keys(VIEWS).forEach(function(k){document.getElementById(VIEWS[k][0]).classList.toggle("hide",k!==w);document.getElementById(VIEWS[k][1]).classList.toggle("on",k===w)})}
+Object.keys(VIEWS).forEach(function(k){document.getElementById(VIEWS[k][1]).onclick=function(){tab(k)}});
+document.getElementById("repo").value=CFG.repo;document.getElementById("tok").value=CFG.tok;
+document.getElementById("saveCfg").onclick=function(){
+  CFG.repo=document.getElementById("repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\.git$/,"").replace(/\/$/,"");
+  CFG.tok=document.getElementById("tok").value.trim();
+  try{localStorage.setItem("plateCfg",JSON.stringify(CFG))}catch(e){}
+  sync();
+};
+document.getElementById("exp").onclick=function(){var bl=new Blob([JSON.stringify(S,null,1)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download="plate-spotter-backup.json";a.click()};
+document.getElementById("imp").onchange=function(e){var f=e.target.files[0];if(!f)return;var fr=new FileReader();fr.onload=function(){try{var d=JSON.parse(fr.result);if(!d||typeof d.found!=="object")throw 0;S.month=d.month||S.month;S.found=d.found;S.history=d.history||{};save();rollover();render();setSync("Backup file imported")}catch(x){setSync("That file couldn’t be read")}};fr.readAsText(f)};
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&rollover())render()});
+load();rollover();render();sync();
+</script>
+</body>
+</html>
